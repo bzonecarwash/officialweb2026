@@ -187,6 +187,32 @@ footer{background:#050505;padding:50px 5% 22px;border-top:1px solid var(--border
 .msg-btn:hover .mtt{opacity:1;}
 @keyframes pulse{0%,100%{box-shadow:0 6px 24px rgba(0,0,0,.4);}50%{box-shadow:0 6px 30px rgba(0,153,255,.5);}}
 
+/* ===== ROULETTE ===== */
+#roulette{background:var(--bg2);}
+.roul-wrap{max-width:680px;margin:0 auto;text-align:center;}
+.roul-plate-row{display:flex;gap:10px;margin-bottom:28px;justify-content:center;}
+.roul-plate-row input{flex:1;max-width:260px;padding:13px 16px;background:var(--surface);border:2px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;}
+.roul-plate-row input:focus{outline:none;border-color:var(--red);}
+.roul-plate-row input::placeholder{color:var(--dim);font-weight:400;letter-spacing:0;}
+.roul-spin-btn{padding:13px 30px;background:var(--red);color:#fff;border:none;border-radius:8px;font-weight:800;font-size:14px;text-transform:uppercase;letter-spacing:.1em;cursor:pointer;transition:all .2s;}
+.roul-spin-btn:hover{background:var(--red2);transform:translateY(-2px);}
+.roul-spin-btn:disabled{background:#444;cursor:not-allowed;transform:none;}
+.roul-canvas-wrap{position:relative;display:inline-block;margin-bottom:24px;}
+.roul-canvas-wrap canvas{border-radius:50%;box-shadow:0 0 40px rgba(230,57,70,.3),0 0 0 6px var(--surface),0 0 0 8px var(--border);}
+.roul-pointer{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:36px;line-height:1;filter:drop-shadow(0 2px 4px rgba(0,0,0,.5));}
+.roul-msg{min-height:48px;font-size:14px;color:var(--dim);margin-bottom:16px;}
+.roul-result{display:none;background:linear-gradient(135deg,rgba(230,57,70,.15),rgba(230,57,70,.05));border:2px solid var(--red);border-radius:12px;padding:24px;margin-bottom:20px;}
+.roul-result.show{display:block;}
+.roul-result-label{font-size:12px;color:var(--dim);text-transform:uppercase;letter-spacing:.15em;margin-bottom:8px;}
+.roul-result-prize{font-family:'Bebas Neue',sans-serif;font-size:36px;color:var(--red);line-height:1.1;margin-bottom:10px;}
+.roul-result-code{font-size:13px;color:var(--dim);margin-bottom:16px;}
+.roul-result-code span{background:var(--surface);border:1px solid var(--border);padding:4px 12px;border-radius:4px;font-weight:700;color:var(--text);letter-spacing:.1em;}
+.roul-messenger-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 24px;background:linear-gradient(135deg,#0099ff,#a033ff);color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;transition:all .2s;}
+.roul-messenger-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,153,255,.4);}
+.roul-already{background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.4);color:#f0b429;padding:14px 20px;border-radius:8px;font-size:13px;font-weight:600;margin-bottom:16px;display:none;}
+.roul-already.show{display:block;}
+.roul-jackpot-flash{animation:jackpotPulse 0.5s ease infinite alternate;}
+@keyframes jackpotPulse{from{box-shadow:0 0 40px rgba(230,57,70,.3),0 0 0 6px var(--surface),0 0 0 8px var(--border);}to{box-shadow:0 0 80px rgba(255,215,0,.8),0 0 0 6px var(--surface),0 0 0 8px gold;}}
 @media(max-width:900px){
   .nav-links{display:none;}
   .hero-stats{grid-template-columns:repeat(2,1fr);}
@@ -212,6 +238,7 @@ footer{background:#050505;padding:50px 5% 22px;border-top:1px solid var(--border
     <a href="#pricing">Pricing</a>
     <a href="#gallery">Gallery</a>
     <a href="#testimonials">Reviews</a>
+    <a href="#roulette">🎡 Spin & Win</a>
     <a href="#booking">Book Now</a>
     <a href="#contact">Contact</a>
   </div>
@@ -554,6 +581,46 @@ footer{background:#050505;padding:50px 5% 22px;border-top:1px solid var(--border
   </div>
 </section>
 
+<!-- ===== ROULETTE SECTION ===== -->
+<section id="roulette">
+  <span class="stag">— Promo & Discounts</span>
+  <h2 class="stitle">Spin & <span class="red">Win!</span></h2>
+  <p class="ssub">Enter your plate number and spin the wheel! One spin per day per plate number. Everyone wins a prize! 🎉</p>
+
+  <div class="roul-wrap">
+    <!-- Plate number input -->
+    <div class="roul-plate-row">
+      <input type="text" id="roulPlate" placeholder="Enter plate number (e.g. ABC 1234)" maxlength="15"/>
+      <button class="roul-spin-btn" id="roulBtn" onclick="startSpin()">🎡 SPIN!</button>
+    </div>
+
+    <!-- Already spun today message -->
+    <div class="roul-already" id="roulAlready">
+      ⏰ You already spun today! Come back tomorrow for another chance to win!
+    </div>
+
+    <!-- Wheel canvas -->
+    <div class="roul-canvas-wrap">
+      <div class="roul-pointer">▼</div>
+      <canvas id="roulCanvas" width="420" height="420"></canvas>
+    </div>
+
+    <!-- Status message -->
+    <div class="roul-msg" id="roulMsg">Enter your plate number above and hit SPIN!</div>
+
+    <!-- Result box -->
+    <div class="roul-result" id="roulResult">
+      <div class="roul-result-label">🎉 Congratulations! You won:</div>
+      <div class="roul-result-prize" id="roulPrizeName"></div>
+      <div class="roul-result-code">Show this code at the counter: <span id="roulCode"></span></div>
+      <a class="roul-messenger-btn" id="roulMessengerBtn" href="#" target="_blank">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.477 2 2 6.145 2 11.259c0 2.82 1.324 5.337 3.408 7.01V22l3.095-1.723C9.454 20.514 10.71 20.7 12 20.7c5.523 0 10-4.145 10-9.441S17.523 2 12 2z"/></svg>
+        Share via Messenger to Claim
+      </a>
+    </div>
+  </div>
+</section>
+
 <section id="booking">
   <span class="stag">— Book An Appointment</span>
   <h2 class="stitle">Schedule Your <span class="red">Service</span></h2>
@@ -768,7 +835,207 @@ document.addEventListener('keydown', e=>{
   if(e.key==='ArrowRight') changePhoto(1);
 });
 
+// ===== ROULETTE =====
+const PRIZES = [
+  {label:"Premium Wash\nless ₱10",     color:"#e63946", pct:5,  jackpot:false},
+  {label:"Premium Wash\nless ₱20",     color:"#c42836", pct:6,  jackpot:false},
+  {label:"Premium Wash\nless ₱30",     color:"#e63946", pct:7,  jackpot:false},
+  {label:"Premium Wash\nless 10%",     color:"#c42836", pct:7,  jackpot:false},
+  {label:"Premium Wash\nless 20%",     color:"#e63946", pct:3,  jackpot:false},
+  {label:"FREE\nPremium Wash",         color:"#FFD700", pct:1,  jackpot:true },
+  {label:"FREE\nGraphene Seal",        color:"#FFD700", pct:1,  jackpot:true },
+  {label:"FREE\nF1 Carnauba Wax",      color:"#FFD700", pct:1,  jackpot:true },
+  {label:"Bac-To-Zero\nless ₱10",     color:"#2d6a4f", pct:6,  jackpot:false},
+  {label:"Bac-To-Zero\nless ₱20",     color:"#1b4332", pct:4,  jackpot:false},
+  {label:"Bac-To-Zero\nless ₱30",     color:"#2d6a4f", pct:3,  jackpot:false},
+  {label:"Bac-To-Zero\nless ₱50",     color:"#1b4332", pct:2,  jackpot:false},
+  {label:"Engine Wash\nless ₱10",     color:"#1d3557", pct:4,  jackpot:false},
+  {label:"Engine Wash\nless ₱20",     color:"#457b9d", pct:5,  jackpot:false},
+  {label:"Engine Wash\nless ₱30",     color:"#1d3557", pct:6,  jackpot:false},
+  {label:"Engine Wash\nless ₱50",     color:"#457b9d", pct:1,  jackpot:false},
+  {label:"Underwash\nless ₱10",       color:"#6d2b8a", pct:6,  jackpot:false},
+  {label:"Underwash\nless ₱20",       color:"#9b5de5", pct:5,  jackpot:false},
+  {label:"Underwash\nless ₱30",       color:"#6d2b8a", pct:3,  jackpot:false},
+  {label:"Underwash\nless ₱50",       color:"#9b5de5", pct:2,  jackpot:false},
+  {label:"Asphalt Removal\nless ₱10", color:"#b5451b", pct:4,  jackpot:false},
+  {label:"Asphalt Removal\nless ₱20", color:"#e07a5f", pct:3,  jackpot:false},
+  {label:"Asphalt Removal\nless ₱30", color:"#b5451b", pct:2,  jackpot:false},
+  {label:"All Windows\nless ₱50",     color:"#2b6cb0", pct:5,  jackpot:false},
+  {label:"All Windows\nless ₱100",    color:"#1a365d", pct:4,  jackpot:false},
+  {label:"All Windows\nless ₱200",    color:"#2b6cb0", pct:4,  jackpot:false},
+];
 
+let cumulative=[];let cum=0;
+PRIZES.forEach(p=>{cum+=p.pct;cumulative.push(cum);});
+
+const DB='https://bzonepos2026-default-rtdb.asia-southeast1.firebasedatabase.app';
+let spinning=false;
+let currentAngle=0;
+
+function cleanPlate(plate){
+  return plate.toUpperCase().replace(/[^A-Z0-9]/g,'');
+}
+
+async function hasSpunToday(plate){
+  const today=new Date().toISOString().split('T')[0];
+  const key=cleanPlate(plate);
+  try{
+    const res=await fetch(`${DB}/spinPlates/${key}.json`);
+    const data=await res.json();
+    return data && data.date===today;
+  }catch(e){ return false; }
+}
+
+async function recordPlate(plate,prizeIndex){
+  const today=new Date().toISOString().split('T')[0];
+  const key=cleanPlate(plate);
+  try{
+    await fetch(`${DB}/spinPlates/${key}.json`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({date:today,prizeIndex})
+    });
+  }catch(e){}
+}
+
+function pickPrize(){
+  const r=Math.random()*100;
+  for(let i=0;i<cumulative.length;i++){if(r<=cumulative[i])return i;}
+  return PRIZES.length-1;
+}
+function generateCode(plate,idx){
+  const today=new Date().toISOString().split('T')[0].replace(/-/g,'');
+  return 'BZ-'+cleanPlate(plate)+'-'+today+'-'+idx;
+}
+
+function drawWheel(angle){
+  const canvas=document.getElementById('roulCanvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const cx=canvas.width/2,cy=canvas.height/2,r=cx-8;
+  const arc=(2*Math.PI)/PRIZES.length;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  PRIZES.forEach((prize,i)=>{
+    const sa=angle+i*arc,ea=sa+arc;
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,sa,ea);ctx.closePath();
+    ctx.fillStyle=prize.color;ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.3)';ctx.lineWidth=1.5;ctx.stroke();
+    ctx.save();ctx.translate(cx,cy);ctx.rotate(sa+arc/2);
+    ctx.textAlign='right';
+    ctx.fillStyle=prize.jackpot?'#000':'#fff';
+    ctx.font=`bold ${prize.jackpot?9:8}px Manrope,sans-serif`;
+    prize.label.split('\n').forEach((line,li,arr)=>{
+      ctx.fillText(line,r-8,(li-(arr.length-1)/2)*11);
+    });
+    ctx.restore();
+  });
+  ctx.beginPath();ctx.arc(cx,cy,22,0,2*Math.PI);
+  ctx.fillStyle='#0a0a0a';ctx.fill();
+  ctx.strokeStyle='#e63946';ctx.lineWidth=3;ctx.stroke();
+  ctx.fillStyle='#e63946';ctx.font='bold 14px sans-serif';
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('B',cx,cy);
+}
+
+async function startSpin(){
+  if(spinning)return;
+  const plate=document.getElementById('roulPlate').value.trim();
+  if(!plate){
+    document.getElementById('roulMsg').textContent='⚠️ Please enter your plate number first!';
+    document.getElementById('roulPlate').focus();return;
+  }
+  if(cleanPlate(plate).length < 4){
+    document.getElementById('roulMsg').textContent='⚠️ Please enter a valid plate number!';
+    return;
+  }
+
+  // Check Firebase — works on ANY device, ANY browser
+  document.getElementById('roulBtn').disabled=true;
+  document.getElementById('roulMsg').textContent='🔍 Checking plate number...';
+
+  const alreadySpun = await hasSpunToday(plate);
+  if(alreadySpun){
+    document.getElementById('roulAlready').classList.add('show');
+    document.getElementById('roulResult').classList.remove('show');
+    document.getElementById('roulMsg').textContent='';
+    document.getElementById('roulBtn').disabled=false;
+    return;
+  }
+
+  document.getElementById('roulAlready').classList.remove('show');
+  document.getElementById('roulResult').classList.remove('show');
+  spinning=true;
+  document.getElementById('roulMsg').textContent='🎡 Spinning...';
+
+  const prizeIndex=pickPrize();
+  const prize=PRIZES[prizeIndex];
+  const arc=(2*Math.PI)/PRIZES.length;
+  const prizeAngle=prizeIndex*arc+arc/2;
+  const targetOffset=(2*Math.PI)-prizeAngle;
+  const extraSpins=(5+Math.floor(Math.random()*4))*2*Math.PI;
+  const finalAngle=targetOffset+extraSpins;
+  const duration=5000,startTime=performance.now(),startAngle=currentAngle;
+
+  // Record plate in Firebase IMMEDIATELY before spin completes
+  // so they can't quickly spin twice before the wheel stops
+  await recordPlate(plate, prizeIndex);
+
+  function easeOut(t){return 1-Math.pow(1-t,4);}
+  function animate(now){
+    const elapsed=now-startTime,progress=Math.min(elapsed/duration,1);
+    currentAngle=startAngle+finalAngle*easeOut(progress);
+    drawWheel(currentAngle);
+    if(progress<1){requestAnimationFrame(animate);}
+    else{
+      spinning=false;
+      document.getElementById('roulBtn').disabled=false;
+      showResult(plate,prizeIndex,prize);
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function showResult(plate,prizeIndex,prize){
+  const code=generateCode(plate,prizeIndex);
+  document.getElementById('roulPrizeName').textContent=prize.label.replace('\n',' ');
+  document.getElementById('roulCode').textContent=code;
+  document.getElementById('roulMsg').textContent=prize.jackpot?'🏆 JACKPOT!! Amazing luck!':'🎉 You won! Show this code at the counter.';
+  const msg=`🎡 BZone Spin & Win!\n\n🚗 Plate: ${plate.toUpperCase()}\n🎁 Prize: ${prize.label.replace('\n',' ')}\n🎫 Code: ${code}\n\nI'd like to claim my prize! 😊`;
+  document.getElementById('roulMessengerBtn').href=`https://m.me/BZONECARWASH?text=${encodeURIComponent(msg)}`;
+  document.getElementById('roulResult').classList.add('show');
+  if(prize.jackpot){
+    document.getElementById('roulCanvas').classList.add('roul-jackpot-flash');
+    setTimeout(()=>document.getElementById('roulCanvas').classList.remove('roul-jackpot-flash'),5000);
+  }
+  // ── AUTO-SAVE TO FIREBASE ──
+  saveSpinToFirebase(plate, prizeIndex, prize, code);
+}
+
+function saveSpinToFirebase(plate, prizeIndex, prize, code){
+  try {
+    const now = new Date();
+    const record = {
+      plate: plate.toUpperCase(),
+      prize: prize.label.replace('\n',' '),
+      prizeIndex: prizeIndex,
+      jackpot: prize.jackpot || false,
+      code: code,
+      date: now.toISOString().split('T')[0],
+      time: now.toLocaleTimeString('en-PH', {hour:'2-digit',minute:'2-digit',hour12:true}),
+      timestamp: now.toISOString(),
+      claimed: false
+    };
+    // Use fetch to call Firebase REST API (no module needed)
+    const dbUrl = 'https://bzonepos2026-default-rtdb.asia-southeast1.firebasedatabase.app/spinWinRecords/' + code + '.json';
+    fetch(dbUrl, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(record)
+    }).catch(()=>{}); // Silent fail — don't disrupt customer experience
+  } catch(e){}
+}
+
+window.addEventListener('load',()=>{drawWheel(0);renderGallery();});
 </script>
 </body>
 </html>
