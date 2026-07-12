@@ -179,8 +179,8 @@ body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
-<!-- ZXing barcode scanner library -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/zxing-js/0.18.6/index.min.js"></script>
+<!-- ZXing barcode scanner library (correct package) -->
+<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 <script>
 const DB_URL = 'https://bzonepos2026-default-rtdb.asia-southeast1.firebasedatabase.app';
 const STAFF_PASS = 'bzone_staff2024';
@@ -224,20 +224,22 @@ function switchTab(tab,btn){
 async function toggleCamera(){
   if(cameraActive){ stopCamera(); return; }
   try {
-    const ZXing = window.ZXingBrowser || window.ZXing;
-    if(!ZXing){ alert('Scanner library not loaded. Try manual entry.'); return; }
+    if(!window.ZXing){ alert('Scanner library not loaded. Please use manual entry.'); return; }
 
     codeReader = new ZXing.BrowserMultiFormatReader();
-    const devices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-    const backCam = devices.find(d=>d.label.toLowerCase().includes('back'))||devices[devices.length-1];
-    const deviceId = backCam ? backCam.deviceId : undefined;
 
     document.getElementById('scanArea').style.display='block';
     document.getElementById('scanToggleBtn').textContent='⏹ Stop Camera';
     document.getElementById('scanToggleBtn').classList.add('stop');
     cameraActive = true;
 
-    await codeReader.decodeFromVideoDevice(deviceId, 'scanVideo', (result, err) => {
+    // Get available cameras
+    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
+    // Prefer back camera on mobile
+    const backCam = devices.find(d=>d.label.toLowerCase().includes('back')||d.label.toLowerCase().includes('rear'));
+    const deviceId = backCam ? backCam.deviceId : (devices.length ? devices[devices.length-1].deviceId : undefined);
+
+    codeReader.decodeFromVideoDevice(deviceId, 'scanVideo', (result, err) => {
       if(result){
         const text = result.getText();
         if(text.startsWith('BZ-')){
