@@ -223,10 +223,7 @@ function switchTab(tab,btn){
 async function toggleCamera(){
   if(cameraActive){ stopCamera(); return; }
   try {
-    // Request camera access
-    const constraints = {
-      video: { facingMode: { ideal: 'environment' } }
-    };
+    const constraints = { video:{ facingMode:{ideal:'environment'}, width:{ideal:1280}, height:{ideal:720} } };
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     const video = document.getElementById('scanVideo');
     video.srcObject = stream;
@@ -237,33 +234,29 @@ async function toggleCamera(){
     document.getElementById('scanToggleBtn').classList.add('stop');
     cameraActive = true;
 
-    // Use BarcodeDetector if available (Chrome, Edge, Android)
     if('BarcodeDetector' in window){
-      const detector = new BarcodeDetector({ formats: ['code_39','code_128','qr_code','data_matrix'] });
-      codeReader = setInterval(async () => {
-        try {
-          const barcodes = await detector.detect(video);
-          for(const b of barcodes){
-            const text = b.rawValue;
-            if(text && text.startsWith('BZ-')){
-              document.getElementById('codeInput').value = text;
-              stopCamera();
-              verifyCode();
-              return;
+      // Native barcode detection (Chrome, Edge, Android Chrome)
+      const detector = new BarcodeDetector({formats:['code_39','code_128','qr_code']});
+      codeReader = setInterval(async()=>{
+        try{
+          const results = await detector.detect(video);
+          for(const b of results){
+            if(b.rawValue && b.rawValue.startsWith('BZ-')){
+              document.getElementById('codeInput').value=b.rawValue;
+              stopCamera(); verifyCode(); return;
             }
           }
-        } catch(e){}
-      }, 300);
+        }catch(e){}
+      },400);
     } else {
-      // Fallback: manual entry only — show message
+      // Fallback for Safari/Firefox — show camera live, staff reads and types
       document.getElementById('scanFallbackMsg').style.display='block';
     }
   } catch(e){
-    let msg = 'Camera error.';
-    if(e.name==='NotAllowedError') msg = 'Camera permission denied. Please allow camera access and try again.';
-    else if(e.name==='NotFoundError') msg = 'No camera found on this device.';
-    alert(msg + '\n\nUse manual entry instead.');
-    stopCamera();
+    let msg='Camera error. Use manual entry.';
+    if(e.name==='NotAllowedError') msg='Camera permission was denied.\nGo to browser settings → allow camera for this site, then try again.';
+    else if(e.name==='NotFoundError') msg='No camera found on this device.';
+    alert(msg); stopCamera();
   }
 }
 
@@ -347,7 +340,7 @@ async function markAsClaimed(){
 async function loadRecords(){
   document.getElementById('recordsBody').innerHTML='<div class="loading">Loading…</div>';
   try {
-    const res=await fetch(`${DB_URL}/spinWinRecords.json?orderBy="timestamp"&limitToLast=100`);
+    const res=await fetch(`${DB_URL}/spinWinRecords.json`);
     const data=await res.json();
     if(!data){
       document.getElementById('recordsBody').innerHTML='<div class="loading">No spin records yet.</div>';
