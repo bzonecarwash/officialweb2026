@@ -26,7 +26,9 @@ nav{position:fixed;top:0;left:0;right:0;padding:12px 5%;display:flex;justify-con
 .hero{min-height:100vh;padding:120px 5% 80px;display:flex;align-items:center;position:relative;background:linear-gradient(135deg,rgba(8,8,8,.96) 0%,rgba(8,8,8,.7) 100%),radial-gradient(ellipse at top right,rgba(230,57,70,.2),transparent 50%);}
 .hero-inner{position:relative;z-index:2;width:100%;display:grid;grid-template-columns:1fr 440px;gap:40px;align-items:center;}
 .hero-left{}
-@media(max-width:900px){.hero-inner{grid-template-columns:1fr;}.hero-right{display:none;}}
+/* Desktop: full roulette in hero only, mobile: full section below */
+.mobile-roulette-section{display:none;}
+@media(max-width:900px){.hero-inner{grid-template-columns:1fr;}.hero-right{display:none !important;}.mobile-roulette-section{display:block;}}
 .hero-tag{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:rgba(230,57,70,.1);border:1px solid rgba(230,57,70,.35);color:var(--red);border-radius:100px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:22px;font-weight:700;animation:up .6s ease both;}
 .hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,10vw,128px);line-height:.92;letter-spacing:.01em;margin-bottom:22px;animation:up .7s .1s ease both;}
 .hero h1 .red{color:var(--red);}
@@ -603,7 +605,7 @@ footer{background:#050505;padding:50px 5% 22px;border-top:1px solid var(--border
 </section>
 
 <!-- ===== ROULETTE SECTION ===== -->
-<section id="roulette">
+<section id="roulette" class="mobile-roulette-section">
   <span class="stag">— Promo & Discounts</span>
   <h2 class="stitle">Spin & <span class="red">Win!</span></h2>
   <p class="ssub">Enter your plate number and spin the wheel! One spin per day per plate number. Everyone wins a prize! 🎉</p>
