@@ -134,6 +134,7 @@ body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);min
         </div>
       </div>
 
+      <div id="scanFallbackMsg" style="display:none;background:rgba(240,180,41,.1);border:1px solid rgba(240,180,41,.3);border-radius:8px;padding:12px;font-size:13px;color:#f0b429;margin-bottom:10px;">⚠️ Auto-scan not supported on this browser. Camera is live — point at barcode, then type the code shown below manually. <br><strong>Tip: Use Chrome on Android for auto-scan.</strong></div>
       <button class="scan-btn" id="scanToggleBtn" onclick="toggleCamera()">📷 Open Camera to Scan</button>
 
       <div class="divider">or enter manually</div>
@@ -179,8 +180,6 @@ body{font-family:'Manrope',sans-serif;background:var(--bg);color:var(--text);min
   </div>
 </div>
 
-<!-- ZXing barcode scanner library (correct package) -->
-<script src="https://unpkg.com/@zxing/library@0.18.6/umd/index.min.js"></script>
 <script>
 const DB_URL = 'https://bzonepos2026-default-rtdb.asia-southeast1.firebasedatabase.app';
 const STAFF_PASS = 'bzone_staff2024';
@@ -224,43 +223,57 @@ function switchTab(tab,btn){
 async function toggleCamera(){
   if(cameraActive){ stopCamera(); return; }
   try {
-    if(!window.ZXing){ alert('Scanner library not loaded. Please use manual entry.'); return; }
-
-    codeReader = new ZXing.BrowserMultiFormatReader();
+    // Request camera access
+    const constraints = {
+      video: { facingMode: { ideal: 'environment' } }
+    };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const video = document.getElementById('scanVideo');
+    video.srcObject = stream;
+    await video.play();
 
     document.getElementById('scanArea').style.display='block';
     document.getElementById('scanToggleBtn').textContent='⏹ Stop Camera';
     document.getElementById('scanToggleBtn').classList.add('stop');
     cameraActive = true;
 
-    // Get available cameras
-    const devices = await ZXing.BrowserMultiFormatReader.listVideoInputDevices();
-    // Prefer back camera on mobile
-    const backCam = devices.find(d=>d.label.toLowerCase().includes('back')||d.label.toLowerCase().includes('rear'));
-    const deviceId = backCam ? backCam.deviceId : (devices.length ? devices[devices.length-1].deviceId : undefined);
-
-    codeReader.decodeFromVideoDevice(deviceId, 'scanVideo', (result, err) => {
-      if(result){
-        const text = result.getText();
-        if(text.startsWith('BZ-')){
-          document.getElementById('codeInput').value = text;
-          stopCamera();
-          verifyCode();
-        }
-      }
-    });
+    // Use BarcodeDetector if available (Chrome, Edge, Android)
+    if('BarcodeDetector' in window){
+      const detector = new BarcodeDetector({ formats: ['code_39','code_128','qr_code','data_matrix'] });
+      codeReader = setInterval(async () => {
+        try {
+          const barcodes = await detector.detect(video);
+          for(const b of barcodes){
+            const text = b.rawValue;
+            if(text && text.startsWith('BZ-')){
+              document.getElementById('codeInput').value = text;
+              stopCamera();
+              verifyCode();
+              return;
+            }
+          }
+        } catch(e){}
+      }, 300);
+    } else {
+      // Fallback: manual entry only — show message
+      document.getElementById('scanFallbackMsg').style.display='block';
+    }
   } catch(e){
-    alert('Camera error: ' + e.message + '\n\nPlease use manual entry instead.');
+    let msg = 'Camera error.';
+    if(e.name==='NotAllowedError') msg = 'Camera permission denied. Please allow camera access and try again.';
+    else if(e.name==='NotFoundError') msg = 'No camera found on this device.';
+    alert(msg + '\n\nUse manual entry instead.');
     stopCamera();
   }
 }
 
 function stopCamera(){
-  if(codeReader){ try{ codeReader.reset(); }catch(e){} codeReader=null; }
+  if(codeReader){ clearInterval(codeReader); codeReader=null; }
   cameraActive = false;
   document.getElementById('scanArea').style.display='none';
   document.getElementById('scanToggleBtn').textContent='📷 Open Camera to Scan';
   document.getElementById('scanToggleBtn').classList.remove('stop');
+  document.getElementById('scanFallbackMsg').style.display='none';
   const video = document.getElementById('scanVideo');
   if(video.srcObject){ video.srcObject.getTracks().forEach(t=>t.stop()); video.srcObject=null; }
 }
