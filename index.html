@@ -26,9 +26,13 @@ nav{position:fixed;top:0;left:0;right:0;padding:12px 5%;display:flex;justify-con
 .hero{min-height:100vh;padding:120px 5% 80px;display:flex;align-items:center;position:relative;background:linear-gradient(135deg,rgba(8,8,8,.96) 0%,rgba(8,8,8,.7) 100%),radial-gradient(ellipse at top right,rgba(230,57,70,.2),transparent 50%);}
 .hero-inner{position:relative;z-index:2;width:100%;display:grid;grid-template-columns:1fr 440px;gap:40px;align-items:center;}
 .hero-left{}
-/* Desktop: full roulette in hero only, mobile: full section below */
-/* roulette always visible */
-@media(max-width:900px){.hero-inner{grid-template-columns:1fr;}.hero-right{display:none !important;}}
+/* Desktop: only hero-right roulette visible. Mobile: full section, hide hero-right */
+#roulette{background:var(--bg2);display:none;}
+@media(max-width:900px){
+  .hero-inner{grid-template-columns:1fr;}
+  .hero-right{display:none !important;}
+  #roulette{display:block;}
+}
 .hero-tag{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;background:rgba(230,57,70,.1);border:1px solid rgba(230,57,70,.35);color:var(--red);border-radius:100px;font-size:11px;letter-spacing:.18em;text-transform:uppercase;margin-bottom:22px;font-weight:700;animation:up .6s ease both;}
 .hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,10vw,128px);line-height:.92;letter-spacing:.01em;margin-bottom:22px;animation:up .7s .1s ease both;}
 .hero h1 .red{color:var(--red);}
@@ -831,7 +835,121 @@ function drawBarcode(text, canvasId, textId){
   if(textId) document.getElementById(textId).textContent=text;
 }
 
-window.addEventListener('load',()=>{
+// ── HERO SPIN (desktop only) ──
+let heroSpinning = false;
+let heroCurrentAngle = 0;
+let heroResultShown = false;
+
+async function startHeroSpin(plate){
+  if(heroSpinning) return;
+  if(cleanPlate(plate).length < 4){
+    alert('Please enter a valid plate number!');
+    return;
+  }
+
+  const btn = document.querySelector('.hero-right button');
+  btn.disabled = true;
+  btn.textContent = '🔍 Checking...';
+
+  const alreadySpun = await hasSpunToday(plate);
+  if(alreadySpun){
+    btn.disabled = false;
+    btn.textContent = '🎡 SPIN NOW!';
+    alert('⏰ You already spun today! Come back tomorrow for another chance.');
+    return;
+  }
+
+  btn.textContent = '🎡 Spinning...';
+  heroSpinning = true;
+
+  const prizeIndex = pickPrize();
+  const prize = PRIZES[prizeIndex];
+  const arc = (2*Math.PI)/PRIZES.length;
+  const prizeAngle = prizeIndex*arc + arc/2;
+  const targetOffset = (2*Math.PI) - prizeAngle;
+  const extraSpins = (5+Math.floor(Math.random()*4))*2*Math.PI;
+  const finalAngle = targetOffset + extraSpins;
+  const duration = 5000;
+  const startTime = performance.now();
+  const startAngle = heroCurrentAngle;
+
+  await recordPlate(plate, prizeIndex);
+
+  function easeOut(t){ return 1-Math.pow(1-t,4); }
+  function animate(now){
+    const elapsed = now-startTime;
+    const progress = Math.min(elapsed/duration, 1);
+    heroCurrentAngle = startAngle + finalAngle*easeOut(progress);
+    drawHeroWheel(heroCurrentAngle);
+    if(progress < 1){
+      requestAnimationFrame(animate);
+    } else {
+      heroSpinning = false;
+      btn.disabled = false;
+      btn.textContent = '🎡 SPIN NOW!';
+      showHeroResult(plate, prizeIndex, prize);
+    }
+  }
+  requestAnimationFrame(animate);
+}
+
+function showHeroResult(plate, prizeIndex, prize){
+  const code = generateCode(plate, prizeIndex);
+  saveSpinToFirebase(plate, prizeIndex, prize, code);
+
+  // Show result in a styled popup overlay
+  const existing = document.getElementById('heroResultOverlay');
+  if(existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.id = 'heroResultOverlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;
+    display:flex;align-items:center;justify-content:center;
+  `;
+
+  const box = document.createElement('div');
+  box.style.cssText = `
+    background:#141414;border:2px solid ${prize.jackpot?'#FFD700':'#e63946'};
+    border-radius:16px;padding:36px;max-width:480px;width:90%;text-align:center;
+    position:relative;
+  `;
+
+  // Build barcode
+  const barcodeId = 'heroBarcode';
+  const barcodeTextId = 'heroBarcodeText';
+
+  box.innerHTML = `
+    <div style="font-size:13px;letter-spacing:.2em;text-transform:uppercase;color:${prize.jackpot?'#FFD700':'#e63946'};margin-bottom:10px;">🎉 You Won!</div>
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:36px;color:${prize.jackpot?'#FFD700':'#f0f0f0'};line-height:1.1;margin-bottom:20px;">${prize.label.replace('\n',' ')}</div>
+    <div style="background:#fff;padding:14px 18px;border-radius:8px;display:inline-block;margin-bottom:10px;">
+      <canvas id="${barcodeId}" style="display:block;"></canvas>
+      <div id="${barcodeTextId}" style="font-family:monospace;font-size:11px;color:#333;margin-top:5px;"></div>
+    </div>
+    <div style="font-size:12px;color:#888;margin-bottom:20px;">Screenshot this barcode and show at the counter</div>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+      <a href="https://m.me/BZONECARWASH?text=${encodeURIComponent(`🎡 BZone Spin & Win!\n\n🚗 Plate: ${plate.toUpperCase()}\n🎁 Prize: ${prize.label.replace('\n',' ')}\n🎫 Code: ${code}\n\nI'd like to claim my prize! 😊`)}" 
+         target="_blank"
+         style="padding:11px 20px;background:linear-gradient(135deg,#0099ff,#a033ff);color:#fff;border-radius:8px;font-weight:700;font-size:13px;text-decoration:none;">
+        💬 Share via Messenger
+      </a>
+      <button onclick="document.getElementById('heroResultOverlay').remove()" 
+              style="padding:11px 20px;background:#222;color:#aaa;border:1px solid #333;border-radius:8px;font-weight:700;font-size:13px;cursor:pointer;">
+        Close
+      </button>
+    </div>
+  `;
+
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  // Draw barcode after element is in DOM
+  setTimeout(()=>{ drawBarcode(code, barcodeId, barcodeTextId); }, 50);
+
+  if(prize.jackpot){
+    box.style.animation = 'jackpotPulse .5s ease infinite alternate';
+  }
+}
   drawWheel(0);
   renderGallery();
   // Draw the small hero wheel
@@ -870,14 +988,21 @@ function drawHeroWheel(angle){
 }
 
 function heroSpinBtn(){
-  // Copy plate to main roulette and scroll there
   const plate = document.getElementById('heroPlate').value.trim();
-  if(plate){
-    document.getElementById('roulPlate').value = plate;
+  if(!plate){
+    alert('Please enter your plate number first!');
+    document.getElementById('heroPlate').focus();
+    return;
   }
-  document.getElementById('roulette').scrollIntoView({behavior:'smooth'});
-  // Auto trigger spin after scroll
-  setTimeout(()=>{ startSpin(); }, 600);
+  // On mobile: copy plate to full section and scroll there
+  if(window.innerWidth <= 900){
+    document.getElementById('roulPlate').value = plate;
+    document.getElementById('roulette').scrollIntoView({behavior:'smooth'});
+    setTimeout(()=>{ startSpin(); }, 600);
+  } else {
+    // On desktop: run spin directly using heroPlate and heroWheel
+    startHeroSpin(plate);
+  }
 }
 </script>
 </body>
