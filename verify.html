@@ -88,6 +88,15 @@ td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-alig
 .loading{padding:40px;text-align:center;color:var(--dim);font-size:13px;}
 .fallback-msg{display:none;background:rgba(240,180,41,.08);border:1px solid rgba(240,180,41,.25);border-radius:8px;padding:12px;font-size:13px;color:#f0b429;margin-bottom:10px;}
 @media(max-width:500px){.stats-row{grid-template-columns:1fr 1fr;}}
+.rec-toolbar{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.rec-filters{display:flex;gap:6px;}
+.rec-filter{padding:7px 14px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--dim);font-family:inherit;transition:all .15s;}
+.rec-filter:hover{border-color:#3a3a3a;color:#aaa;}
+.rec-filter.on{background:var(--red);color:#fff;border-color:var(--red);}
+.rec-search{flex:1;min-width:150px;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:13px;text-transform:uppercase;}
+.rec-search:focus{outline:none;border-color:var(--red);}
+.rec-count{font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;}
+@media(max-width:560px){.rec-toolbar{flex-direction:column;align-items:stretch;}.rec-filters{justify-content:space-between;}.rec-filter{flex:1;}}
 </style>
 <script>
 (function webpackUniversalModuleDefinition(root, factory) {
@@ -10291,11 +10300,20 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     </div>
     <div class="records-card">
       <div class="records-header">
-        <h3>All Spin Records</h3>
+        <h3>Spin Records</h3>
         <div class="records-header-btns">
           <button class="delete-all-btn" id="deleteAllBtn" onclick="deleteAllRecords()">🗑 Delete All Records</button>
           <button class="refresh-btn" onclick="loadRecords()">↻ Refresh</button>
         </div>
+      </div>
+      <div class="rec-toolbar">
+        <div class="rec-filters">
+          <button class="rec-filter on" onclick="setFilter('unclaimed',this)">🟢 Unclaimed</button>
+          <button class="rec-filter" onclick="setFilter('claimed',this)">🟡 Claimed</button>
+          <button class="rec-filter" onclick="setFilter('all',this)">📋 All</button>
+        </div>
+        <input class="rec-search" id="recSearch" type="text" placeholder="🔍 Search plate number…" oninput="renderRecords()" autocomplete="off" autocapitalize="characters" spellcheck="false"/>
+        <div class="rec-count" id="recCount">—</div>
       </div>
       <div id="recordsBody"><div class="loading">Loading records…</div></div>
     </div>
@@ -10486,38 +10504,67 @@ async function markAsClaimed(){
 }
 
 // ── RECORDS ──
+let allRecords = [];
+let recFilter = 'unclaimed';
+
 async function loadRecords(){
   document.getElementById('recordsBody').innerHTML='<div class="loading">Loading…</div>';
   try {
     const res = await fetch(`${DB}/spinWinRecords.json`);
     const data = await res.json();
     if(!data){
+      allRecords = [];
       document.getElementById('recordsBody').innerHTML='<div class="loading">No spin records yet.</div>';
       ['statTotal','statUnclaimed','statJackpot'].forEach(id=>document.getElementById(id).textContent='0');
       return;
     }
-    const records = Object.entries(data).map(([code,rec])=>({...rec,code}));
-    records.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
-    document.getElementById('statTotal').textContent=records.length;
-    document.getElementById('statUnclaimed').textContent=records.filter(r=>!r.claimed).length;
-    document.getElementById('statJackpot').textContent=records.filter(r=>r.jackpot).length;
-
-    document.getElementById('recordsBody').innerHTML=`
-      <table>
-        <thead><tr><th>Plate / Code</th><th>Prize</th><th>Date</th><th>Status</th>${isOwner?'<th>Action</th>':''}</tr></thead>
-        <tbody>${records.map(r=>`
-          <tr>
-            <td><div class="plate-txt">${r.plate||'—'}</div><div class="code-txt">${r.code}</div></td>
-            <td><div style="font-size:13px;font-weight:600;${r.jackpot?'color:#FFD700;':''}">${r.jackpot?'🏆 ':''}${r.prize||'—'}</div></td>
-            <td style="color:var(--dim);font-size:12px;">${r.date||'—'}<br>${r.time||'—'}</td>
-            <td>${r.claimed?'<span class="badge claimed">Claimed</span>':'<span class="badge unclaimed">Unclaimed</span>'}${r.jackpot?'<br><span class="badge jackpot" style="margin-top:4px;">Jackpot</span>':''}</td>
-            ${isOwner?`<td><button class="del-btn" style="display:inline-block;" onclick="deleteRecord('${r.code}')">🗑 Delete</button></td>`:''}
-          </tr>`).join('')}
-        </tbody>
-      </table>`;
+    allRecords = Object.entries(data).map(([code,rec])=>({...rec,code}));
+    allRecords.sort((a,b)=>new Date(b.timestamp)-new Date(a.timestamp));
+    document.getElementById('statTotal').textContent=allRecords.length;
+    document.getElementById('statUnclaimed').textContent=allRecords.filter(r=>!r.claimed).length;
+    document.getElementById('statJackpot').textContent=allRecords.filter(r=>r.jackpot).length;
+    renderRecords();
   } catch(e){
     document.getElementById('recordsBody').innerHTML='<div class="loading">Error loading. Check connection.</div>';
   }
+}
+
+function setFilter(f, btn){
+  recFilter = f;
+  document.querySelectorAll('.rec-filter').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  renderRecords();
+}
+
+function renderRecords(){
+  const q = document.getElementById('recSearch').value.trim().toUpperCase().replace(/[^A-Z0-9]/g,'');
+  let rows = allRecords;
+  if(recFilter==='unclaimed') rows = rows.filter(r=>!r.claimed);
+  else if(recFilter==='claimed') rows = rows.filter(r=>r.claimed);
+  if(q) rows = rows.filter(r=>(r.plate||'').toUpperCase().replace(/[^A-Z0-9]/g,'').includes(q));
+
+  document.getElementById('recCount').textContent = rows.length + (rows.length===1?' record':' records');
+
+  if(!rows.length){
+    document.getElementById('recordsBody').innerHTML='<div class="loading">No '+(recFilter==='all'?'':recFilter+' ')+'records'+(q?' for plate "'+q+'"':'')+'.</div>';
+    return;
+  }
+
+  document.getElementById('recordsBody').innerHTML=`
+    <table>
+      <thead><tr><th>Plate / Code</th><th>Prize</th><th>Date</th><th>Status</th>${isOwner?'<th>Action</th>':''}</tr></thead>
+      <tbody>${rows.map(r=>`
+        <tr>
+          <td><div class="plate-txt">${r.plate||'—'}</div><div class="code-txt">${r.code}</div></td>
+          <td><div style="font-size:13px;font-weight:600;${r.jackpot?'color:#FFD700;':''}">${r.jackpot?'🏆 ':''}${r.prize||'—'}</div></td>
+          <td style="color:var(--dim);font-size:12px;">${r.date||'—'}<br>${r.time||'—'}</td>
+          <td>${r.claimed
+              ?'<span class="badge claimed">Claimed</span>'+(r.claimedAt?'<div style="font-size:10px;color:var(--dim);margin-top:3px;">'+r.claimedAt+'</div>':'')
+              :'<span class="badge unclaimed">Unclaimed</span>'}${r.jackpot?'<br><span class="badge jackpot" style="margin-top:4px;">Jackpot</span>':''}</td>
+          ${isOwner?`<td><button class="del-btn" style="display:inline-block;" onclick="deleteRecord('${r.code}')">🗑 Delete</button></td>`:''}
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
 }
 
 // ── OWNER: DELETE SINGLE RECORD ──
