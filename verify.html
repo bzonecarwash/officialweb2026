@@ -10492,7 +10492,7 @@ function showResult(type, data, code){
 async function markAsClaimed(){
   if(!currentCode||!currentRecord) return;
   if(!confirm(`Mark as CLAIMED?\n\nPlate: ${currentRecord.plate}\nPrize: ${currentRecord.prize}\n\nThis cannot be undone.`)) return;
-  const claimedAt = new Date().toLocaleString('en-PH',{year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:true});
+  const claimedAt = new Date().toLocaleString('en-PH',{timeZone:'Asia/Manila',year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',hour12:true});
   try {
     await fetch(`${DB}/spinWinRecords/${currentCode}.json`,{
       method:'PATCH',headers:{'Content-Type':'application/json'},
